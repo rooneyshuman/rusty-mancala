@@ -2,6 +2,8 @@
 
 > Client/Server application to play Mancala written in Rust.
 
+![rusty mancala](./img/rust-mancala.jpg "")
+
 ## Deployment
 
 The server will be hosted on AWS.
