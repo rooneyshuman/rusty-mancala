@@ -3,10 +3,10 @@
 //socket opened between the client and the server without much overhead.
 //
 //The game state can be easily represented by modeling the "board", which consists of two sides and
-//two goals.  The two sides will have several "slots", which in turn will be occuped by zero or more
+//two goals.  The two sides will have several "SLOTS", which in turn will be occuped by zero or more
 //"stones".  The goals each belong to a certain player and are only reachable by that player.  The
-//game moves forwards by a player deciding to move the stones in one of their slots one at a time
-//around the board, depositing them in the following slots one at a time in a counter-clockwise
+//game moves forwards by a player deciding to move the stones in one of their SLOTS one at a time
+//around the board, depositing them in the following SLOTS one at a time in a counter-clockwise
 //motion.
 //
 //Any time a stone is passed over a player's goal (the slot at the right hand side of either player)
@@ -16,26 +16,6 @@
 //last stone placed as well as all of the stones from the opposing slot are scored for the player who
 //made the move.
 
-//Ideas for modeling the board:
-//
-// - a single array of uInts that has length 2 * number of slots
-//        - each array slot represents a slot on the board
-//        - each int in the array represents the amount of stones in that slot
-//        - player 1 is slots 0 - (n/2 - 1)
-//        - player 2 is slots n/2 -> n - 1
-//        - opposing slots are calculated by adding or subtracting distance to n/2 or n/2 - 1
-//              - n = 10 (2 sides with 5 slots each)
-//              - 0 <--> 9; 1 <--> 8, etc
-//              - 0 is 4 away from slot 4, 9 is 4 away from slot 5
-//              - 1 is 3 away from slot 4, 8 is 3 away from slot 5, etc
-//        - goal slots are also uInts with their own field
-// - two arrays of uInts that have length n
-//        - player one is array 1
-//        - player two is array 2
-//        - opposing slots are calculated by just mapping 1 <--> the slots
-//              - slot 1 (player 1) <--> slot 1 (player 2)
-//        - goal slots are also uInts with their own field
-
 //Possible workflow for moves:
 //
 // - Poll for "is it my turn"
@@ -44,3 +24,104 @@
 //    - checked by client or server?
 //        - basic bounds checked by client (does it exist on my side of the board)
 //        - probably server for any check dependent on game state (was the slot i picked empty)
+
+// remove magic numbers
+const SLOTS: usize = 7;                             // there are 6 playable slots and one goal slot
+const STARTING_STONES: u8 = 4;
+
+#[derive(Debug, Clone)]
+struct GameState {
+    player_one: String,
+    player_two: String,
+    game_board: [u8; SLOTS * 2],
+    player_one_goal_slot: usize,
+    player_two_goal_slot: usize,
+    player_one_turn: bool
+}
+
+impl GameState {
+    fn new(p_one: String, p_two: String) -> GameState {
+        let mut init_game_board = [STARTING_STONES; SLOTS * 2];
+        init_game_board[SLOTS + 1] = 0;
+        init_game_board[0] = 0;
+        GameState {
+            player_one: p_one,
+            player_two: p_two,
+            game_board: init_game_board,
+            player_one_goal_slot: SLOTS,
+            player_two_goal_slot: 0,
+            player_one_turn: true
+        }
+    }
+
+    fn cur_players_goal_slot(&mut self) -> usize {
+        if self.player_one_turn { self.player_one_goal_slot } else { self.player_two_goal_slot }
+    }
+
+    fn add_points(&mut self, points_to_add: u8) {
+        if self.player_one_turn == true {
+            self.game_board[self.player_one_goal_slot] += points_to_add;
+        } else {
+            self.game_board[self.player_two_goal_slot] += points_to_add;
+        }
+    }
+
+    fn move_stones(&mut self, starting_slot: &usize, stones_to_move: &u8) {
+        let board_length: usize = self.game_board.len();
+        let goal_slot: usize = self.cur_players_goal_slot();
+        self.game_board[*starting_slot] = 0;
+        for cur_slot in (starting_slot + 1) .. (starting_slot + *stones_to_move as usize + 1) {
+            let slot_to_add_to: usize = cur_slot % &board_length;
+            if slot_to_add_to == goal_slot {
+                self.add_points(1);
+                continue;
+            }
+            self.game_board[slot_to_add_to] += 1;
+        }
+    }
+
+    pub fn make_move(&mut self, slot_to_move: &usize) {
+        let num_of_stones: u8 = self.game_board[*slot_to_move];
+        let board_length: usize = self.game_board.len();
+        let goal_slot: usize = self.cur_players_goal_slot();
+        self.game_board[*slot_to_move] = 0;
+        for cur_slot in (slot_to_move + 1) .. (slot_to_move + num_of_stones as usize + 1) {
+            let slot_to_add_to: usize = cur_slot % &board_length;
+            if slot_to_add_to == goal_slot {
+                self.add_points(1);
+                continue;
+            }
+            self.game_board[slot_to_add_to] += 1;
+        }
+    }
+}
+
+#[test]
+fn test_game_state_can_be_initialized() {
+    let gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+}
+
+#[test]
+fn test_game_state_init_values_are_correct() {
+    let gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    let mut init_game_board = [STARTING_STONES; SLOTS * 2];
+    init_game_board[SLOTS + 1] = 0;
+    init_game_board[0] = 0;
+    assert_eq!(gs.player_one, "asdf".to_string());
+    assert_eq!(gs.player_two, "asdf2".to_string());
+    assert_eq!(gs.game_board, init_game_board);
+    assert!(gs.player_one_turn);
+}
+
+#[test]
+fn test_game_state_updates_after_one_move() {
+    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    gs.make_move(&1);
+    println!("{:?}", gs.game_board)
+}
+
+fn main() {
+    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    gs.make_move(&1);
+    println!("{:?}", gs.game_board);
+}
