@@ -2,8 +2,9 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::str::from_utf8;
 
-pub fn run_client() {
-    match TcpStream::connect("localhost:3333") {
+pub fn run_client(host: String, port: u32) {
+    let connection = [host, ":".to_string(), port.to_string()].concat();
+    match TcpStream::connect(connection) {
         Ok(mut stream) => {
             println!("Successfully connected to server in port 3333");
 
