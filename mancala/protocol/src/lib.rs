@@ -119,9 +119,3 @@ fn test_game_state_updates_after_one_move() {
     gs.make_move(&1);
     println!("{:?}", gs.game_board)
 }
-
-fn main() {
-    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
-    gs.make_move(&1);
-    println!("{:?}", gs.game_board);
-}
