@@ -26,7 +26,7 @@
 //        - probably server for any check dependent on game state (was the slot i picked empty)
 
 // remove magic numbers
-const SLOTS: usize = 7;                             // there are 6 playable slots and one goal slot
+const SLOTS: usize = 7; // there are 6 playable slots and one goal slot
 const STARTING_STONES: u8 = 4;
 
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ struct GameState {
     game_board: [u8; SLOTS * 2],
     player_one_goal_slot: usize,
     player_two_goal_slot: usize,
-    player_one_turn: bool
+    player_one_turn: bool,
 }
 
 impl GameState {
@@ -50,49 +50,40 @@ impl GameState {
             game_board: init_game_board,
             player_one_goal_slot: SLOTS,
             player_two_goal_slot: 0,
-            player_one_turn: true
+            player_one_turn: true,
         }
     }
 
     fn cur_players_goal_slot(&mut self) -> usize {
-        if self.player_one_turn { self.player_one_goal_slot } else { self.player_two_goal_slot }
+        if self.player_one_turn {
+            self.player_one_goal_slot
+        } else {
+            self.player_two_goal_slot
+        }
     }
 
     fn add_points(&mut self, points_to_add: u8) {
-        if self.player_one_turn == true {
+        if self.player_one_turn {
             self.game_board[self.player_one_goal_slot] += points_to_add;
         } else {
             self.game_board[self.player_two_goal_slot] += points_to_add;
         }
     }
 
-    fn move_stones(&mut self, starting_slot: &usize, stones_to_move: &u8) {
+    pub fn make_move(&mut self, slot_to_move: usize) {
+        let num_of_stones: u8 = self.game_board[slot_to_move];
         let board_length: usize = self.game_board.len();
         let goal_slot: usize = self.cur_players_goal_slot();
-        self.game_board[*starting_slot] = 0;
-        for cur_slot in (starting_slot + 1) .. (starting_slot + *stones_to_move as usize + 1) {
-            let slot_to_add_to: usize = cur_slot % &board_length;
+        self.game_board[slot_to_move] = 0;
+        for cur_slot in (slot_to_move + 1)..=slot_to_move + num_of_stones as usize {
+            let slot_to_add_to: usize = cur_slot % board_length;
             if slot_to_add_to == goal_slot {
                 self.add_points(1);
                 continue;
             }
             self.game_board[slot_to_add_to] += 1;
         }
-    }
-
-    pub fn make_move(&mut self, slot_to_move: &usize) {
-        let num_of_stones: u8 = self.game_board[*slot_to_move];
-        let board_length: usize = self.game_board.len();
-        let goal_slot: usize = self.cur_players_goal_slot();
-        self.game_board[*slot_to_move] = 0;
-        for cur_slot in (slot_to_move + 1) .. (slot_to_move + num_of_stones as usize + 1) {
-            let slot_to_add_to: usize = cur_slot % &board_length;
-            if slot_to_add_to == goal_slot {
-                self.add_points(1);
-                continue;
-            }
-            self.game_board[slot_to_add_to] += 1;
-        }
+        self.player_one_turn = !self.player_one_turn;
     }
 }
 
@@ -116,6 +107,25 @@ fn test_game_state_init_values_are_correct() {
 #[test]
 fn test_game_state_updates_after_one_move() {
     let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
-    gs.make_move(&1);
-    println!("{:?}", gs.game_board)
+    let mut init_game_board = [STARTING_STONES; SLOTS * 2];
+    init_game_board[SLOTS + 1] = 0;
+    init_game_board[0] = 0;
+    gs.make_move(1);
+    assert_ne!(gs.game_board, init_game_board);
+}
+
+#[test]
+fn test_turn_changes_after_making_move() {
+    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    let turn1: bool = gs.player_one_turn;
+    gs.make_move(1);
+    let turn2: bool = gs.player_one_turn;
+    gs.make_move(2);
+    let turn3: bool = gs.player_one_turn;
+    gs.make_move(3);
+    let turn4: bool = gs.player_one_turn;
+    assert_eq!(turn1, turn3);
+    assert_eq!(turn2, turn4);
+    assert_ne!(turn1, turn2);
+    assert_ne!(turn3, turn4);
 }
