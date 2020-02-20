@@ -70,6 +70,28 @@ impl GameState {
         }
     }
 
+    // if your last manacala piece ends up on your side, in an empty slot,
+    // you get to capture your opponents' pieces in the opposite slot and
+    // add them to your goal
+    fn capture(&mut self, cur_slot: usize) -> bool {
+        if self.game_board[cur_slot] != 1 {
+            return false;
+        }
+        let mut opposite_slot: usize = 0;
+        if self.player_one_turn && cur_slot < SLOTS {
+            opposite_slot = SLOTS + (SLOTS - cur_slot);
+        } else if !self.player_one_turn && cur_slot > SLOTS {
+            opposite_slot = SLOTS - (cur_slot - SLOTS);
+        }
+        if self.game_board[opposite_slot] == 0 || opposite_slot == 0 {
+            return false;
+        }
+        self.add_capture_points(self.game_board[opposite_slot] + 1);
+        self.game_board[cur_slot] = 0;
+        self.game_board[opposite_slot] = 0;
+        true
+    }
+
     pub fn make_move(&mut self, slot_to_move: usize) {
         let mut num_of_stones: u8 = self.game_board[slot_to_move];
         let board_length: usize = self.game_board.len();
@@ -89,8 +111,10 @@ impl GameState {
             }
             cur_slot = (cur_slot + 1) % board_length;
         }
-        // TODO - add "capture" logic
-        self.player_one_turn = !self.player_one_turn;
+        // only change turns if current player didn't score
+        if cur_slot != goal_slots.0 && !self.capture(cur_slot) {
+            self.player_one_turn = !self.player_one_turn;
+        }
     }
 
     pub fn get_board(&mut self) -> [u8; SLOTS * 2] {
@@ -130,16 +154,38 @@ fn test_turn_changes_after_making_move() {
     let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
     let turn1: bool = gs.player_one_turn;
     gs.make_move(1);
-    println!("{:?}", gs.game_board);
     let turn2: bool = gs.player_one_turn;
     gs.make_move(2);
-    println!("{:?}", gs.game_board);
     let turn3: bool = gs.player_one_turn;
     gs.make_move(3);
-    println!("{:?}", gs.game_board);
     let turn4: bool = gs.player_one_turn;
     assert_eq!(turn1, turn3);
     assert_eq!(turn2, turn4);
     assert_ne!(turn1, turn2);
     assert_ne!(turn3, turn4);
+}
+
+#[test]
+fn test_scoring_turns_dont_change_players() {
+    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    let turn1: bool = gs.player_one_turn;
+    gs.make_move(3);
+    let turn2: bool = gs.player_one_turn;
+    assert_eq!(turn1, turn2);
+}
+
+#[test]
+fn test_captures() {
+    // this test assumes SLOTS = 7 and starting_stones = 4
+    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    gs.make_move(6);
+    gs.make_move(11);
+    let turn1: bool = gs.player_one_turn;
+    gs.make_move(2);
+    let turn2: bool = gs.player_one_turn;
+    assert_eq!(turn1, turn2);
+    assert_eq!(gs.game_board[gs.player_one_goal_slot], 7);
+    assert_eq!(gs.game_board[gs.player_two_goal_slot], 1);
+    assert_eq!(gs.game_board[8], 0);
+    assert_eq!(gs.game_board[6], 0);
 }
