@@ -30,7 +30,7 @@ const SLOTS: usize = 7; // there are 6 playable slots and one goal slot
 const STARTING_STONES: u8 = 4;
 
 #[derive(Debug, Clone)]
-struct GameState {
+pub struct GameState {
     player_one: String,
     player_two: String,
     game_board: [u8; SLOTS * 2],
@@ -40,9 +40,9 @@ struct GameState {
 }
 
 impl GameState {
-    fn new(p_one: String, p_two: String) -> GameState {
+    pub fn new(p_one: String, p_two: String) -> GameState {
         let mut init_game_board = [STARTING_STONES; SLOTS * 2];
-        init_game_board[SLOTS + 1] = 0;
+        init_game_board[SLOTS] = 0;
         init_game_board[0] = 0;
         GameState {
             player_one: p_one,
@@ -54,15 +54,15 @@ impl GameState {
         }
     }
 
-    fn cur_players_goal_slot(&mut self) -> usize {
+    fn get_players_goal_slots(&mut self) -> (usize, usize) {
         if self.player_one_turn {
-            self.player_one_goal_slot
+            (self.player_one_goal_slot, self.player_two_goal_slot)
         } else {
-            self.player_two_goal_slot
+            (self.player_two_goal_slot, self.player_one_goal_slot)
         }
     }
 
-    fn add_points(&mut self, points_to_add: u8) {
+    fn add_capture_points(&mut self, points_to_add: u8) {
         if self.player_one_turn {
             self.game_board[self.player_one_goal_slot] += points_to_add;
         } else {
@@ -71,19 +71,30 @@ impl GameState {
     }
 
     pub fn make_move(&mut self, slot_to_move: usize) {
-        let num_of_stones: u8 = self.game_board[slot_to_move];
+        let mut num_of_stones: u8 = self.game_board[slot_to_move];
         let board_length: usize = self.game_board.len();
-        let goal_slot: usize = self.cur_players_goal_slot();
+        let goal_slots: (usize, usize) = self.get_players_goal_slots();
         self.game_board[slot_to_move] = 0;
-        for cur_slot in (slot_to_move + 1)..=slot_to_move + num_of_stones as usize {
-            let slot_to_add_to: usize = cur_slot % board_length;
-            if slot_to_add_to == goal_slot {
-                self.add_points(1);
+        let mut cur_slot: usize = slot_to_move + 1;
+        loop {
+            if cur_slot == goal_slots.1 {
+                // skip opponent's goal
+                cur_slot = (cur_slot + 1) % board_length;
                 continue;
             }
-            self.game_board[slot_to_add_to] += 1;
+            self.game_board[cur_slot] += 1;
+            num_of_stones -= 1;
+            if num_of_stones == 0 {
+                break;
+            }
+            cur_slot = (cur_slot + 1) % board_length;
         }
+        // TODO - add "capture" logic
         self.player_one_turn = !self.player_one_turn;
+    }
+
+    pub fn get_board(&mut self) -> [u8; SLOTS * 2] {
+        self.game_board
     }
 }
 
@@ -96,7 +107,7 @@ fn test_game_state_can_be_initialized() {
 fn test_game_state_init_values_are_correct() {
     let gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
     let mut init_game_board = [STARTING_STONES; SLOTS * 2];
-    init_game_board[SLOTS + 1] = 0;
+    init_game_board[SLOTS] = 0;
     init_game_board[0] = 0;
     assert_eq!(gs.player_one, "asdf".to_string());
     assert_eq!(gs.player_two, "asdf2".to_string());
@@ -108,7 +119,7 @@ fn test_game_state_init_values_are_correct() {
 fn test_game_state_updates_after_one_move() {
     let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
     let mut init_game_board = [STARTING_STONES; SLOTS * 2];
-    init_game_board[SLOTS + 1] = 0;
+    init_game_board[SLOTS] = 0;
     init_game_board[0] = 0;
     gs.make_move(1);
     assert_ne!(gs.game_board, init_game_board);
@@ -119,10 +130,13 @@ fn test_turn_changes_after_making_move() {
     let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
     let turn1: bool = gs.player_one_turn;
     gs.make_move(1);
+    println!("{:?}", gs.game_board);
     let turn2: bool = gs.player_one_turn;
     gs.make_move(2);
+    println!("{:?}", gs.game_board);
     let turn3: bool = gs.player_one_turn;
     gs.make_move(3);
+    println!("{:?}", gs.game_board);
     let turn4: bool = gs.player_one_turn;
     assert_eq!(turn1, turn3);
     assert_eq!(turn2, turn4);
