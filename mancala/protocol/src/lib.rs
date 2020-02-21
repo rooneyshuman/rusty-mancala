@@ -1,33 +1,6 @@
-//The idea behind these objects is that we should be able to represent a typical mancala game in a
-//concise and easily serializiable manner.  These objects should be ale to be passed through a TCP
-//socket opened between the client and the server without much overhead.
-//
-//The game state can be easily represented by modeling the "board", which consists of two sides and
-//two goals.  The two sides will have several "SLOTS", which in turn will be occuped by zero or more
-//"stones".  The goals each belong to a certain player and are only reachable by that player.  The
-//game moves forwards by a player deciding to move the stones in one of their SLOTS one at a time
-//around the board, depositing them in the following SLOTS one at a time in a counter-clockwise
-//motion.
-//
-//Any time a stone is passed over a player's goal (the slot at the right hand side of either player)
-//that stone is deposited there and a point is scored.  Any time a turn ends in a point scored, the
-//player is allowed to play again.  Players also score points if they end their turn in an otherwise
-//empty slot ON THEIR SIDE that lies directly across from a non-empty opponent slot.  In that case, the
-//last stone placed as well as all of the stones from the opposing slot are scored for the player who
-//made the move.
-
-//Possible workflow for moves:
-//
-// - Poll for "is it my turn"
-// - Once true, Player sends a slot they'd like to move
-// - Slot is checked against possible moves and accepted or rejected
-//    - checked by client or server?
-//        - basic bounds checked by client (does it exist on my side of the board)
-//        - probably server for any check dependent on game state (was the slot i picked empty)
-
-// remove magic numbers
 const SLOTS: usize = 7; // there are 6 playable slots and one goal slot
 const STARTING_STONES: u8 = 4;
+const BOARD_LENGTH: usize = SLOTS * 2;
 
 #[derive(Debug, Clone)]
 pub struct GameState {
@@ -37,6 +10,7 @@ pub struct GameState {
     player_one_goal_slot: usize,
     player_two_goal_slot: usize,
     player_one_turn: bool,
+    active: bool,
 }
 
 impl GameState {
@@ -51,7 +25,28 @@ impl GameState {
             player_one_goal_slot: SLOTS,
             player_two_goal_slot: 0,
             player_one_turn: true,
+            active: true,
         }
+    }
+
+    fn collect_remaining_stones(&mut self) {
+        self.game_board[self.player_one_goal_slot] +=
+            &self.game_board[1..self.player_one_goal_slot].iter().sum();
+        self.game_board[self.player_two_goal_slot] += &self.game_board
+            [self.player_one_goal_slot + 1..]
+            .iter()
+            .sum();
+    }
+
+    fn is_game_over(&mut self) -> bool {
+        if self.player_one_turn {
+            return self.game_board[1..self.player_one_goal_slot]
+                .iter()
+                .all(|&x| x == 0);
+        }
+        self.game_board[self.player_one_goal_slot + 1..]
+            .iter()
+            .all(|&x| x == 0)
     }
 
     fn get_players_goal_slots(&mut self) -> (usize, usize) {
@@ -94,14 +89,13 @@ impl GameState {
 
     pub fn make_move(&mut self, slot_to_move: usize) {
         let mut num_of_stones: u8 = self.game_board[slot_to_move];
-        let board_length: usize = self.game_board.len();
         let goal_slots: (usize, usize) = self.get_players_goal_slots();
         self.game_board[slot_to_move] = 0;
-        let mut cur_slot: usize = slot_to_move + 1;
+        let mut cur_slot: usize = (slot_to_move + 1) % BOARD_LENGTH;
         loop {
             if cur_slot == goal_slots.1 {
                 // skip opponent's goal
-                cur_slot = (cur_slot + 1) % board_length;
+                cur_slot = (cur_slot + 1) % BOARD_LENGTH;
                 continue;
             }
             self.game_board[cur_slot] += 1;
@@ -109,11 +103,16 @@ impl GameState {
             if num_of_stones == 0 {
                 break;
             }
-            cur_slot = (cur_slot + 1) % board_length;
+            cur_slot = (cur_slot + 1) % BOARD_LENGTH;
         }
         // only change turns if current player didn't score
+        // TODO - decide if we should change turns on capture
         if cur_slot != goal_slots.0 && !self.capture(cur_slot) {
             self.player_one_turn = !self.player_one_turn;
+        }
+        if self.is_game_over() {
+            self.collect_remaining_stones();
+            self.active = false;
         }
     }
 
@@ -137,6 +136,7 @@ fn test_game_state_init_values_are_correct() {
     assert_eq!(gs.player_two, "asdf2".to_string());
     assert_eq!(gs.game_board, init_game_board);
     assert!(gs.player_one_turn);
+    assert!(gs.active);
 }
 
 #[test]
@@ -189,3 +189,18 @@ fn test_captures() {
     assert_eq!(gs.game_board[8], 0);
     assert_eq!(gs.game_board[6], 0);
 }
+
+#[test]
+fn test_collect_remaining() {
+    let mut gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    let mut gs2: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
+    gs.collect_remaining_stones();
+    gs2.make_move(6);
+    gs2.collect_remaining_stones();
+    assert_eq!(gs.game_board[gs.player_one_goal_slot], 24);
+    assert_eq!(gs.game_board[gs.player_two_goal_slot], 24);
+    assert_eq!(gs2.game_board[gs2.player_one_goal_slot], 21);
+    assert_eq!(gs2.game_board[gs2.player_two_goal_slot], 27);
+}
+
+// ---------------------------------------------------------------------------------------------- //
