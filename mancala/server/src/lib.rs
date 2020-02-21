@@ -8,23 +8,17 @@ fn handle_client(mut stream: TcpStream) {
     loop {
         match stream.read(&mut buffer) {
             Ok(size) => {
-                // Exit loop if no bytes received
+                // Exit loop if no bytes received (client connection ended)
                 if size == 0 {
                     println!("Client terminated connection");
                     break;
                 }
                 let input = str::from_utf8(&buffer[0..size]).unwrap().trim_end();
                 println!("Data received: {}", input);
-                // Exit loop & terminate connection if user enters "quit"
-                if input.eq_ignore_ascii_case("quit") {
-                    println!("Client terminated connection");
-                    stream.shutdown(Shutdown::Both).unwrap();
-                    break;
-                } else {
-                    // TODO: update & send game state instead of echoing
-                    stream.write_all(&buffer[0..size]).unwrap();
-                    stream.flush().unwrap();
-                }
+
+                // TODO: update & send game state instead of echoing
+                stream.write_all(&buffer[0..size]).unwrap();
+                stream.flush().unwrap();
             }
             Err(_) => {
                 println!(
