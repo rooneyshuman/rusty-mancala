@@ -33,7 +33,6 @@ fn handle_client(mut stream: TcpStream) {
                 );
                 // Close read & write portions of connection
                 stream.shutdown(Shutdown::Both).unwrap();
-                return;
             }
         }
     }
