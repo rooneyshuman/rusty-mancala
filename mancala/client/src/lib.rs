@@ -31,5 +31,5 @@ pub fn run_client(host: String, port: u32) {
             println!("Failed to connect: {}", e);
         }
     }
-    println!("Terminated.");
+    println!("Connection terminated");
 }
