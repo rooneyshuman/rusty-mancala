@@ -8,6 +8,11 @@ fn handle_client(mut stream: TcpStream) {
     loop {
         match stream.read(&mut buffer) {
             Ok(size) => {
+                // Exit loop if no bytes received
+                if size == 0 {
+                    println!("Client terminated connection");
+                    break;
+                }
                 let input = str::from_utf8(&buffer[0..size]).unwrap().trim_end();
                 println!("Data received: {}", input);
                 // Exit loop & terminate connection if user enters "quit"
@@ -28,6 +33,7 @@ fn handle_client(mut stream: TcpStream) {
                 );
                 // Close read & write portions of connection
                 stream.shutdown(Shutdown::Both).unwrap();
+                return;
             }
         }
     }
