@@ -19,7 +19,9 @@ pub fn run_client(host: String, port: u32) {
             }
 
             // Write user input to server
-            stream.write(input.as_bytes()).expect("Server write error");
+            stream
+                .write_all(input.as_bytes())
+                .expect("Server write error");
             stream.flush().unwrap();
 
             // Create read stream & read input from server
