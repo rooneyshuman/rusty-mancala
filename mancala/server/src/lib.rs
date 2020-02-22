@@ -1,24 +1,35 @@
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::str;
 use std::thread;
 
 fn handle_client(mut stream: TcpStream) {
-    let mut data = [0 as u8; 50]; // using 50 byte buffer
-    while match stream.read(&mut data) {
-        Ok(size) => {
-            // echo everything!
-            stream.write_all(&data[0..size]).unwrap();
-            true
+    let mut buffer = [0; 512]; // use a 512 byte buffer
+    loop {
+        match stream.read(&mut buffer) {
+            Ok(size) => {
+                // Exit loop if no bytes received (client connection ended)
+                if size == 0 {
+                    println!("Client terminated connection");
+                    break;
+                }
+                let input = str::from_utf8(&buffer[0..size]).unwrap().trim_end();
+                println!("Data received: {}", input);
+
+                // TODO: update & send game state instead of echoing
+                stream.write_all(&buffer[0..size]).unwrap();
+                stream.flush().unwrap();
+            }
+            Err(_) => {
+                println!(
+                    "An error occurred, terminating connection with {}",
+                    stream.peer_addr().unwrap()
+                );
+                // Close read & write portions of connection
+                stream.shutdown(Shutdown::Both).unwrap();
+            }
         }
-        Err(_) => {
-            println!(
-                "An error occurred, terminating connection with {}",
-                stream.peer_addr().unwrap()
-            );
-            stream.shutdown(Shutdown::Both).unwrap();
-            false
-        }
-    } {}
+    }
 }
 
 pub fn run_server(host: String, port: u32) {
@@ -31,13 +42,13 @@ pub fn run_server(host: String, port: u32) {
             Ok(stream) => {
                 println!("New connection: {}", stream.peer_addr().unwrap());
                 thread::spawn(move || {
-                    // connection succeeded
+                    // connection succeeded, handle stream thread
                     handle_client(stream)
                 });
             }
             Err(e) => {
+                // connection failed, print error received
                 println!("Error: {}", e);
-                /* connection failed */
             }
         }
     }
