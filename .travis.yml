@@ -2,6 +2,11 @@ language: rust
 rust:
   - 1.41.0
 
+before_script:
+  - cd $TRAVIS_BUILD_DIR/mancala/client && cargo clippy && cargo fmt
+  - cd $TRAVIS_BUILD_DIR/mancala/server && cargo clippy && cargo fmt
+  - cd $TRAVIS_BUILD_DIR/mancala/protocol && cargo clippy && cargo fmt
+
 script:
   - cd $TRAVIS_BUILD_DIR/mancala/client && cargo test --verbose
   - cd $TRAVIS_BUILD_DIR/mancala/server && cargo test --verbose
