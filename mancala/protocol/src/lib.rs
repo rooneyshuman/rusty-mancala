@@ -390,10 +390,10 @@ struct ServerMessenger<'a> {
     client_connection_name: &'a str, // TODO - different identifier per client?
 }
 
-impl <'a> ServerMessenger<'a> {
-    pub fn new(client_connection_name: &'a str) -> ServerMessenger <'a> {
+impl<'a> ServerMessenger<'a> {
+    pub fn new(client_connection_name: &'a str) -> ServerMessenger<'a> {
         ServerMessenger {
-            client_connection_name
+            client_connection_name,
         }
     }
 
@@ -415,8 +415,8 @@ fn test_make_server_messenger_gamestate_msg() {
     let gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
     let gs_msg: Option<Msg> = s_msgr.make_gamestate_message(&gs);
     match &gs_msg {
-        Some(Msg)   => assert!(true),
-        None => assert!(false)
+        Some(Msg) => assert!(true),
+        None => assert!(false),
     }
     let msg: Msg = gs_msg.unwrap();
     assert_eq!(msg.msg_type, MsgType::Response);
