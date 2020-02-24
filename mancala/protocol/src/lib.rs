@@ -348,7 +348,7 @@ fn test_client_msg_make_nickname() {
     let c: ClientMessenger = ClientMessenger::new();
     let m: Option<Msg> = c.make_nickname_msg("asdf");
     match &m {
-        Some(msg) => assert_eq!(true, true),
+        Some(_) => assert_eq!(true, true),
         None => assert_eq!(true, false),
     };
     let msg: Msg = m.unwrap();
@@ -415,7 +415,7 @@ fn test_make_server_messenger_gamestate_msg() {
     let gs: GameState = GameState::new("asdf".to_string(), "asdf2".to_string());
     let gs_msg: Option<Msg> = s_msgr.make_gamestate_message(&gs);
     match &gs_msg {
-        Some(Msg) => assert!(true),
+        Some(_) => assert!(true),
         None => assert!(false),
     }
     let msg: Msg = gs_msg.unwrap();
