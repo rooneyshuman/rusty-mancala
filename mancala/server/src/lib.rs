@@ -1,6 +1,6 @@
 use client::*;
 use std::io::{Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::{Shutdown, TcpListener};
 use std::str;
 use std::thread;
 
@@ -20,46 +20,42 @@ impl Server {
         }
     }
 
-    fn handle_client(&mut self, mut stream: TcpStream) {
-        let mut buffer = [0; 512]; // use a 512 byte buffer
-        loop {
-            match stream.read(&mut buffer) {
-                Ok(size) => {
-                    // Exit loop if no bytes received (client connection ended)
-                    if size == 0 {
-                        println!("Client terminated connection");
-                        break;
-                    }
-                    let input = str::from_utf8(&buffer[0..size]).unwrap().trim_end();
-                    println!("Data received: {}", input);
-
-                    // TODO: update & send game state instead of echoing
-                    stream.write_all(&buffer[0..size]).unwrap();
-                    stream.flush().unwrap();
-                }
-                Err(_) => {
-                    println!(
-                        "An error occurred, terminating connection with {}",
-                        stream.peer_addr().unwrap()
-                    );
-                    // Close read & write portions of connection
-                    stream.shutdown(Shutdown::Both).unwrap();
-                }
-            }
-        }
-    }
-
-    pub fn run_server(&self) {
+    pub fn run_server(self) {
         let listener = TcpListener::bind(self.connection).unwrap();
         // accept connections and process them, spawning a new thread for each one
         println!("Server listening on port 3333");
         for stream in listener.incoming() {
             match stream {
-                Ok(stream) => {
+                Ok(mut stream) => {
                     println!("New connection: {}", stream.peer_addr().unwrap());
                     thread::spawn(move || {
                         // connection succeeded, handle stream thread
-                        self.handle_client(stream)
+                        let mut buffer = [0; 512]; // use a 512 byte buffer
+                        loop {
+                            match stream.read(&mut buffer) {
+                                Ok(size) => {
+                                    // Exit loop if no bytes received (client connection ended)
+                                    if size == 0 {
+                                        println!("Client terminated connection");
+                                        break;
+                                    }
+                                    let input =
+                                        str::from_utf8(&buffer[0..size]).unwrap().trim_end();
+                                    println!("Data received: {}", input);
+                                    // TODO: update & send game state instead of echoing
+                                    stream.write_all(&buffer[0..size]).unwrap();
+                                    stream.flush().unwrap();
+                                }
+                                Err(_) => {
+                                    println!(
+                                        "An error occurred, terminating connection with {}",
+                                        stream.peer_addr().unwrap()
+                                    );
+                                    // Close read & write portions of connection
+                                    stream.shutdown(Shutdown::Both).unwrap();
+                                }
+                            }
+                        }
                     });
                 }
                 Err(e) => {
