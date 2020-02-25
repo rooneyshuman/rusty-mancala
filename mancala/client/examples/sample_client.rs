@@ -5,5 +5,5 @@ fn main() {
     let host: String = "localhost".to_string();
     let port: u32 = 3333;
 
-    run_client(host, port);
+    Client::new(host, port).run_client();
 }
